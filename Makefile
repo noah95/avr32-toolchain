@@ -24,7 +24,7 @@
 
 GCC_VERSION      = 4.4.7
 BINUTILS_VERSION = 2.23.1
-NEWLIB_VERSION   = 1.16.0
+NEWLIB_VERSION   = 1.19.0
 DFU_VERSION      = 0.5.4
 AVR32_PATCH_REV	 = 3.4.3
 ATMEL_HEADER_REV = 6.1.3.1475
@@ -64,16 +64,16 @@ PKG_VERSION = "AVR 32 bit GNU Toolchain-$(AVR_PATCH_REV)-$(GIT_REV)"
 #### PRIMARY TOOLCHAIN URLS #####
 
 GCC_ARCHIVE = gcc-$(GCC_VERSION).tar.bz2
-GCC_URL = http://mirrors.peers.community/mirrors/gnu/gcc/gcc-$(GCC_VERSION)/$(GCC_ARCHIVE)
+GCC_URL = http://ftp.gnu.org/gnu/gcc/gcc-$(GCC_VERSION)/$(GCC_ARCHIVE)
 GCC_MD5 = 295709feb4441b04e87dea3f1bab4281
 
 BINUTILS_ARCHIVE = binutils-$(BINUTILS_VERSION).tar.bz2
-BINUTILS_URL = http://mirrors.peers.community/mirrors/gnu/binutils/$(BINUTILS_ARCHIVE)
+BINUTILS_URL = https://ftp.gnu.org/gnu/binutils/$(BINUTILS_ARCHIVE)
 BINUTILS_MD5 = 33adb18c3048d057ac58d07a3f1adb38
 
 NEWLIB_ARCHIVE = newlib-$(NEWLIB_VERSION).tar.gz
 NEWLIB_URL = ftp://sources.redhat.com/pub/newlib/$(NEWLIB_ARCHIVE)
-NEWLIB_MD5 = bf8f1f9e3ca83d732c00a79a6ef29bc4
+NEWLIB_MD5 = 0966e19f03217db9e9076894b47e6601
 
 AVR32PATCHES_ARCHIVE = avr32-patches.tar.gz
 AVR32PATCHES_URL = http://distribute.atmel.no/tools/opensource/Atmel-AVR32-GNU-Toolchain/$(AVR32_PATCH_REV)/$(AVR32PATCHES_ARCHIVE)
@@ -94,11 +94,11 @@ AUTOMAKE_VERSION = 1.11
 MPC_VERSION = 0.8.1
 
 AUTOCONF_ARCHIVE = autoconf-$(AUTOCONF_VERSION).tar.bz2
-AUTOCONF_URL = http://mirrors.peers.community/mirrors/gnu/autoconf/$(AUTOCONF_ARCHIVE)
+AUTOCONF_URL = http://ftp.gnu.org/gnu/autoconf/$(AUTOCONF_ARCHIVE)
 AUTOCONF_MD5 = ef400d672005e0be21e0d20648169074
 
 AUTOMAKE_ARCHIVE = automake-$(AUTOMAKE_VERSION).tar.bz2
-AUTOMAKE_URL = http://mirrors.peers.community/mirrors/gnu/automake/$(AUTOMAKE_ARCHIVE)
+AUTOMAKE_URL = http://ftp.gnu.org/gnu/automake/$(AUTOMAKE_ARCHIVE)
 AUTOMAKE_MD5 = 4db4efe027e26b33930a7e151de19d0f
 
 
@@ -349,6 +349,7 @@ patch-binutils stamps/patch-binutils: stamps/extract-binutils stamps/extract-avr
 	for f in ../avr32-patches/binutils/*.patch; do \
 	patch -N -p0 <$${f} ; \
 	done ; \
+	patch -N -p1 <../patches/binutils/00-texinfo-5.0-support.patch ; \
 	popd ; \
 	[ -d stamps ] || mkdir stamps
 	touch stamps/patch-binutils;
@@ -379,7 +380,7 @@ build-binutils stamps/build-binutils: stamps/regen-binutils stamps/install-supp-
 	--disable-shared --disable-werror				\
 	--with-sysroot="$(PREFIX)/$(TARGET)" --with-bugurl=$(BUG_URL) &&	\
 	$(MAKE) all-bfd TARGET-bfd=headers; \
-	rm bfd/Makefile; \
+	rm -f bfd/Makefile; \
 	make configure-bfd; \
 	$(MAKE)
 	[ -d stamps ] || mkdir stamps ;
@@ -452,13 +453,19 @@ patch-gcc stamps/patch-gcc: stamps/extract-gcc stamps/extract-avr32patches
 	patch -N -p0 <$${f} ; \
 	done ; \
 	patch -N -p0 <../patches/gcc/00-libstdc++-shared_ptr-without-rtti-bug-42019.patch ; \
+	patch -N -p0 <../patches/gcc/01-gcc-floor_log2-error.patch ; \
+	patch -N -p0 <../patches/gcc/02-libstdc++-libsupc++-with-fno-exceptions.patch ; \
+	patch -N -p0 <../patches/gcc/03-libstdc++-with-fno-exceptions.patch ; \
+	patch -N -p1 <../patches/gcc/04-texinfo-5.0-support.patch ; \
+	patch -N -p1 <../patches/gcc/05-gperf-3.0.4.patch ; \
 	popd ;
 	[ -d stamps ] || mkdir stamps
 	touch stamps/patch-gcc;
 
-CFLAGS_FOR_TARGET="-ffunction-sections -fdata-sections			\
+CFLAGS_FOR_TARGET=-ffunction-sections -fdata-sections			\
 -fomit-frame-pointer -DPREFER_SIZE_OVER_SPEED -D__OPTIMIZE_SIZE__ -g	\
--Os -fno-unroll-loops"
+-Os -fno-unroll-loops
+CXXFLAGS_FOR_TARGET=$(CFLAGS_FOR_TARGET) -fno-exceptions
 
 .PHONY: build-gcc
 build-gcc stamps/build-gcc: stamps/install-binutils stamps/prep-gcc
@@ -469,19 +476,19 @@ build-gcc stamps/build-gcc: stamps/install-binutils stamps/prep-gcc
 	../../gcc-$(GCC_VERSION)/configure --prefix="$(PREFIX)"		\
 	--target=$(TARGET) --enable-languages="c" --with-gnu-ld		\
 	--with-gnu-as --with-newlib --disable-nls --disable-libssp	\
-	--with-dwarf2 --enable-sjlj-exceptions				\
-	--enable-version-specific-runtime-libs --disable-libstdcxx-pch	\
+	--with-dwarf2 --enable-version-specific-runtime-libs --disable-libstdcxx-pch	\
 	--disable-shared						\
 	--with-build-time-tools="$(PREFIX)/$(TARGET)/bin"		\
-	--enable-cxx-flags=$(CFLAGS_FOR_TARGET)				\
+	--enable-cxx-flags="$(CXXFLAGS_FOR_TARGET)"				\
 	--with-sysroot="$(PREFIX)/$(TARGET)"				\
 	--with-build-sysroot="$(PREFIX)/$(TARGET)"			\
 	--with-build-time-tools="$(PREFIX)/$(TARGET)/bin"		\
-	CFLAGS_FOR_TARGET=$(CFLAGS_FOR_TARGET)				\
+	CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)"				\
 	LDFLAGS_FOR_TARGET="--sysroot=\"$(PREFIX)/$(TARGET)\""		\
 	CPPFLAGS_FOR_TARGET="--sysroot=\"$(PREFIX)/$(TARGET)\""		\
 	--with-bugurl=$(BUG_URL) \
 	--with-pkgversion=$(PKG_VERSION) && \
+	rm -f ../../gcc-4.4.7/gcc/cp/cfns.h && \
 	$(MAKE) -j$(PROCS)
 	[ -d stamps ] || mkdir stamps
 	touch stamps/build-gcc;
@@ -511,15 +518,15 @@ build-final-gcc stamps/build-final-gcc: stamps/install-binutils stamps/install-g
 	../../gcc-$(GCC_VERSION)/configure --prefix=$(PREFIX) \
 	--target=$(TARGET) $(DEPENDENCIES) --enable-languages="c,c++" --with-gnu-ld \
 	--with-gnu-as --with-newlib --disable-nls --disable-libssp \
-	--with-dwarf2 --enable-sjlj-exceptions \
-	--enable-version-specific-runtime-libs --disable-libstdcxx-pch \
+	--with-dwarf2 --enable-version-specific-runtime-libs --disable-libstdcxx-pch \
 	--disable-shared --enable-__cxa_atexit \
 	--with-build-time-tools=$(PREFIX)/$(TARGET)/bin \
-	--enable-cxx-flags=$(CFLAGS_FOR_TARGET) \
+	--enable-cxx-flags="$(CXXFLAGS_FOR_TARGET)" \
 	--with-sysroot=$(PREFIX)/$(TARGET) \
 	--with-build-sysroot=$(PREFIX)/$(TARGET) \
 	--with-build-time-tools=$(PREFIX)/$(TARGET)/bin \
-	CFLAGS_FOR_TARGET=$(CFLAGS_FOR_TARGET) \
+	--disable-libstdcxx-verbose \
+	CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" \
 	LDFLAGS_FOR_TARGET="--sysroot=$(PREFIX)/$(TARGET)" \
 	CPPFLAGS_FOR_TARGET="--sysroot=$(PREFIX)/$(TARGET)" \
 	--with-bugurl=$(BUG_URL) \
