@@ -79,7 +79,7 @@ AVR32PATCHES_ARCHIVE = avr32-patches.tar.gz
 AVR32PATCHES_URL = http://distribute.atmel.no/tools/opensource/Atmel-AVR32-GNU-Toolchain/$(AVR32_PATCH_REV)/$(AVR32PATCHES_ARCHIVE)
 AVR32PATCHES_MD5 = 99b2f4497d264c9200538bb1229fdef9
 
-AVR32HEADERS_ARCHIVE = atmel-headers-$(ATMEL_HEADER_REV).zip
+AVR32HEADERS_ARCHIVE = headers.zip
 AVR32HEADERS_URL = http://www.atmel.com/Images/$(AVR32HEADERS_ARCHIVE)
 AVR32HEADERS_MD5 = d69e8e188470e4fea68a4650442b5750
 
@@ -228,20 +228,17 @@ extract-avr32patches stamps/extract-avr32patches : downloads/$(AVR32PATCHES_ARCH
 
 .PHONY: download-avr32headers
 downloads/$(AVR32HEADERS_ARCHIVE) download-avr32headers:
-	cd downloads && curl -LO $(AVR32HEADERS_URL)
+	cd downloads && cp ../headers/headers.zip .
 
 .PHONY: extract-headers
 extract-headers stamps/extract-headers : downloads/$(AVR32HEADERS_ARCHIVE)
-	@(t1=`openssl md5 $< | cut -f 2 -d " " -` && \
-	[ "$$t1" = "$(AVR32HEADERS_MD5)" ] || \
-	( echo "Bad Checksum! Please remove the following file and retry: $<" && false ))
-	unzip -o $<
+	cd downloads/ && unzip -o $<
 	mkdir -p stamps
 	touch stamps/extract-headers
 
 .PHONY: install-headers
 install-headers stamps/install-headers : stamps/extract-headers stamps/install-final-gcc
-	cp -r atmel-headers-$(ATMEL_HEADER_REV)/$(TARGET) $(PREFIX)/$(TARGET)/include/$(TARGET)
+	cp -r downloads/headers/* $(PREFIX)/$(TARGET)/include/
 	mkdir -p stamps
 	touch stamps/install-headers
 
@@ -458,6 +455,7 @@ patch-gcc stamps/patch-gcc: stamps/extract-gcc stamps/extract-avr32patches
 	patch -N -p0 <../patches/gcc/03-libstdc++-with-fno-exceptions.patch ; \
 	patch -N -p1 <../patches/gcc/04-texinfo-5.0-support.patch ; \
 	patch -N -p1 <../patches/gcc/05-gperf-3.0.4.patch ; \
+	patch -N < ../patches/gcc/06-gcc.texi.diff ; \
 	popd ;
 	[ -d stamps ] || mkdir stamps
 	touch stamps/patch-gcc;
