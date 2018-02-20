@@ -239,6 +239,7 @@ extract-headers stamps/extract-headers : downloads/$(AVR32HEADERS_ARCHIVE)
 .PHONY: install-headers
 install-headers stamps/install-headers : stamps/extract-headers stamps/install-final-gcc
 	cp -r downloads/headers/* $(PREFIX)/$(TARGET)/include/
+	cp -r headers/avr32 $(PREFIX)/$(TARGET)/include/
 	mkdir -p stamps
 	touch stamps/install-headers
 
