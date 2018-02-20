@@ -232,7 +232,7 @@ downloads/$(AVR32HEADERS_ARCHIVE) download-avr32headers:
 
 .PHONY: extract-headers
 extract-headers stamps/extract-headers : downloads/$(AVR32HEADERS_ARCHIVE)
-	cd downloads/ && unzip -o $<
+	cd downloads/ && unzip -o $(notdir $<)
 	mkdir -p stamps
 	touch stamps/extract-headers
 
